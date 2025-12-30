@@ -2,16 +2,15 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>ローンシミュレーション</title>
+  <title>ローン＆積立シミュレーション</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
       background: #f2f5f9;
     }
 
@@ -24,7 +23,12 @@
     h1 {
       text-align: center;
       font-size: 20px;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 17px;
+      margin-bottom: 10px;
     }
 
     .card {
@@ -37,8 +41,8 @@
 
     label {
       font-size: 14px;
-      margin-bottom: 6px;
       display: block;
+      margin-bottom: 6px;
     }
 
     input {
@@ -58,18 +62,13 @@
       color: white;
       border: none;
       border-radius: 10px;
-      cursor: pointer;
-    }
-
-    button:active {
-      background: #357ab8;
     }
 
     .result p {
-      font-size: 15px;
-      margin: 10px 0;
       display: flex;
       justify-content: space-between;
+      margin: 8px 0;
+      font-size: 15px;
     }
 
     .value {
@@ -82,128 +81,140 @@
       height: auto !important;
     }
 
-    .error {
-      color: red;
-      font-size: 14px;
+    .divider {
       text-align: center;
-      margin-top: 8px;
+      margin: 24px 0 8px;
+      font-weight: bold;
+      color: #666;
     }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>ローンシミュレーション</h1>
+  <h1>ローン＆積立シミュレーション</h1>
 
+  <!-- ローン -->
   <div class="card">
+    <h2>ローン</h2>
     <label>借入金額（円）</label>
-    <input type="number" id="amount" placeholder="3000000">
+    <input id="loanAmount" type="number" placeholder="3000000">
 
     <label>返済年数（年）</label>
-    <input type="number" id="years" placeholder="35">
+    <input id="loanYears" type="number" placeholder="35">
 
     <label>年利（％）</label>
-    <input type="number" step="0.01" id="rate" placeholder="1.2">
+    <input id="loanRate" type="number" step="0.01" placeholder="1.2">
 
-    <button onclick="calculate()">計算する</button>
-    <div class="error" id="error"></div>
+    <button onclick="calcLoan()">計算する</button>
   </div>
 
-  <div class="card result" id="result" style="display:none;">
-    <p>月々の返済額 <span class="value" id="monthly"></span></p>
-    <p>支払利息総額 <span class="value" id="interest"></span></p>
-    <p>支払総額 <span class="value" id="total"></span></p>
+  <div class="card result" id="loanResult" style="display:none;">
+    <p>月々返済額 <span class="value" id="loanMonthly"></span></p>
+    <p>支払利息 <span class="value" id="loanInterest"></span></p>
+    <p>支払総額 <span class="value" id="loanTotal"></span></p>
   </div>
 
-  <div class="card" id="chartCard" style="display:none;">
-    <h2 style="font-size:16px;margin-bottom:10px;">残債の推移</h2>
+  <div class="card" id="loanChartCard" style="display:none;">
     <canvas id="loanChart"></canvas>
+  </div>
+
+  <div class="divider">▼ 積立シミュレーション ▼</div>
+
+  <!-- 積立 -->
+  <div class="card">
+    <h2>積立</h2>
+    <label>毎月の積立額（円）</label>
+    <input id="saveMonthly" type="number" placeholder="30000">
+
+    <label>積立年数（年）</label>
+    <input id="saveYears" type="number" placeholder="20">
+
+    <label>年利（％）</label>
+    <input id="saveRate" type="number" step="0.01" placeholder="3">
+
+    <button onclick="calcSave()">計算する</button>
+  </div>
+
+  <div class="card result" id="saveResult" style="display:none;">
+    <p>最終金額 <span class="value" id="saveTotal"></span></p>
+    <p>利息 <span class="value" id="saveInterest"></span></p>
+    <p>積立元本 <span class="value" id="savePrincipal"></span></p>
+  </div>
+
+  <div class="card" id="saveChartCard" style="display:none;">
+    <canvas id="saveChart"></canvas>
   </div>
 </div>
 
 <script>
-  let chart;
+  let loanChart, saveChart;
+  const yen = n => n.toLocaleString("ja-JP") + " 円";
 
-  function yen(num) {
-    return num.toLocaleString("ja-JP") + " 円";
-  }
+  function calcLoan() {
+    const A = +loanAmount.value;
+    const Y = +loanYears.value;
+    const R = +loanRate.value / 100 / 12;
+    const M = Y * 12;
 
-  function calculate() {
-    const amount = +document.getElementById("amount").value;
-    const years = +document.getElementById("years").value;
-    const rate = +document.getElementById("rate").value;
-    const error = document.getElementById("error");
+    const P = R === 0 ? A / M :
+      A * R * Math.pow(1 + R, M) / (Math.pow(1 + R, M) - 1);
 
-    error.textContent = "";
+    let balance = A;
+    const data = [], labels = [];
 
-    if (!amount || !years || rate < 0) {
-      error.textContent = "すべて正しく入力してください";
-      return;
+    for (let i = 1; i <= M; i++) {
+      const interest = balance * R;
+      balance -= (P - interest);
+      if (i % 12 === 0 || i === 1 || i === M) {
+        labels.push(`${Math.ceil(i/12)}年`);
+        data.push(Math.max(balance,0));
+      }
     }
 
-    const months = years * 12;
-    const monthlyRate = rate / 100 / 12;
+    loanMonthly.textContent = yen(Math.round(P));
+    loanTotal.textContent = yen(Math.round(P * M));
+    loanInterest.textContent = yen(Math.round(P * M - A));
 
-    const monthly =
-      monthlyRate === 0
-        ? amount / months
-        : amount * monthlyRate * Math.pow(1 + monthlyRate, months) /
-          (Math.pow(1 + monthlyRate, months) - 1);
+    loanResult.style.display = loanChartCard.style.display = "block";
 
-    let balance = amount;
-    const balances = [];
-    const labels = [];
+    if (loanChart) loanChart.destroy();
+    loanChart = new Chart(loanChart, {
+      type: "line",
+      data: { labels, datasets: [{ data, fill:true, tension:0.3 }] },
+      options: { plugins:{legend:{display:false}} }
+    });
+  }
+
+  function calcSave() {
+    const M = +saveMonthly.value;
+    const Y = +saveYears.value;
+    const R = +saveRate.value / 100 / 12;
+    const months = Y * 12;
+
+    let total = 0;
+    const data = [], labels = [];
 
     for (let i = 1; i <= months; i++) {
-      const interest = balance * monthlyRate;
-      const principal = monthly - interest;
-      balance -= principal;
-
-      if (i % 12 === 0 || i === 1 || i === months) {
-        labels.push(` ${Math.ceil(i / 12)}年`);
-        balances.push(Math.max(balance, 0));
+      total = total * (1 + R) + M;
+      if (i % 12 === 0 || i === months) {
+        labels.push(`${Math.ceil(i/12)}年`);
+        data.push(Math.round(total));
       }
     }
 
-    document.getElementById("monthly").textContent = yen(Math.round(monthly));
-    document.getElementById("total").textContent = yen(Math.round(monthly * months));
-    document.getElementById("interest").textContent = yen(Math.round(monthly * months - amount));
+    const principal = M * months;
+    saveTotal.textContent = yen(Math.round(total));
+    savePrincipal.textContent = yen(principal);
+    saveInterest.textContent = yen(Math.round(total - principal));
 
-    document.getElementById("result").style.display = "block";
-    document.getElementById("chartCard").style.display = "block";
+    saveResult.style.display = saveChartCard.style.display = "block";
 
-    drawChart(labels, balances);
-  }
-
-  function drawChart(labels, data) {
-    const ctx = document.getElementById("loanChart");
-
-    if (chart) chart.destroy();
-
-    chart = new Chart(ctx, {
+    if (saveChart) saveChart.destroy();
+    saveChart = new Chart(saveChart, {
       type: "line",
-      data: {
-        labels,
-        datasets: [{
-          label: "残債（円）",
-          data,
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3
-        }]
-      },
-      options: {
-        plugins: {
-          legend: { display: false }
-        },
-        scales: {
-          y: {
-            ticks: {
-              callback: value => value.toLocaleString()
-            }
-          }
-        }
-      }
+      data: { labels, datasets: [{ data, fill:true, tension:0.3 }] },
+      options: { plugins:{legend:{display:false}} }
     });
   }
 </script>
