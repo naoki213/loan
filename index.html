@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ローンシミュレーション</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: linear-gradient(135deg, #f0f4ff, #e8f6f0);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      background: #fff;
+      width: 360px;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: #555;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #4a90e2;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      background: #4a90e2;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #357ab8;
+    }
+
+    .result {
+      margin-top: 20px;
+      background: #f7f9fc;
+      padding: 15px;
+      border-radius: 8px;
+    }
+
+    .result p {
+      margin: 8px 0;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .value {
+      font-weight: bold;
+      color: #4a90e2;
+      float: right;
+    }
+
+    .error {
+      color: red;
+      font-size: 13px;
+      margin-top: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>ローンシミュレーション</h1>
+
+  <label>借入金額（円）</label>
+  <input type="number" id="amount" placeholder="例：3000000">
+
+  <label>返済年数（年）</label>
+  <input type="number" id="years" placeholder="例：35">
+
+  <label>年利（％）</label>
+  <input type="number" step="0.01" id="rate" placeholder="例：1.2">
+
+  <button onclick="calculate()">計算する</button>
+
+  <div class="error" id="error"></div>
+
+  <div class="result" id="result" style="display:none;">
+    <p>月々の返済額 <span class="value" id="monthly"></span></p>
+    <p>支払利息総額 <span class="value" id="interest"></span></p>
+    <p>支払総額 <span class="value" id="total"></span></p>
+  </div>
+</div>
+
+<script>
+  function formatYen(num) {
+    return num.toLocaleString("ja-JP") + " 円";
+  }
+
+  function calculate() {
+    const amount = parseFloat(document.getElementById("amount").value);
+    const years = parseFloat(document.getElementById("years").value);
+    const rate = parseFloat(document.getElementById("rate").value);
+    const error = document.getElementById("error");
+    const result = document.getElementById("result");
+
+    error.textContent = "";
+    result.style.display = "none";
+
+    if (!amount || !years || rate < 0) {
+      error.textContent = "すべて正しく入力してください。";
+      return;
+    }
+
+    const monthlyRate = rate / 100 / 12;
+    const months = years * 12;
+
+    let monthlyPayment;
+
+    if (monthlyRate === 0) {
+      monthlyPayment = amount / months;
+    } else {
+      monthlyPayment = amount * monthlyRate *
+        Math.pow(1 + monthlyRate, months) /
+        (Math.pow(1 + monthlyRate, months) - 1);
+    }
+
+    const totalPayment = monthlyPayment * months;
+    const totalInterest = totalPayment - amount;
+
+    document.getElementById("monthly").textContent = formatYen(Math.round(monthlyPayment));
+    document.getElementById("interest").textContent = formatYen(Math.round(totalInterest));
+    document.getElementById("total").textContent = formatYen(Math.round(totalPayment));
+
+    result.style.display = "block";
+  }
+</script>
+
+</body>
+</html>
