@@ -5,6 +5,7 @@
   <title>ローン＆積立シミュレーション</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
@@ -148,7 +149,9 @@
 </div>
 
 <script>
-  let loanChart, saveChart;
+  let loanChartInstance = null;
+  let saveChartInstance = null;
+
   const yen = n => n.toLocaleString("ja-JP") + " 円";
 
   function calcLoan() {
@@ -157,18 +160,21 @@
     const R = +loanRate.value / 100 / 12;
     const M = Y * 12;
 
-    const P = R === 0 ? A / M :
-      A * R * Math.pow(1 + R, M) / (Math.pow(1 + R, M) - 1);
+    const P = R === 0
+      ? A / M
+      : A * R * Math.pow(1 + R, M) / (Math.pow(1 + R, M) - 1);
 
     let balance = A;
-    const data = [], labels = [];
+    const data = [];
+    const labels = [];
 
     for (let i = 1; i <= M; i++) {
       const interest = balance * R;
       balance -= (P - interest);
+
       if (i % 12 === 0 || i === 1 || i === M) {
-        labels.push(`${Math.ceil(i/12)}年`);
-        data.push(Math.max(balance,0));
+        labels.push(`${Math.ceil(i / 12)}年`);
+        data.push(Math.max(Math.round(balance), 0));
       }
     }
 
@@ -176,13 +182,31 @@
     loanTotal.textContent = yen(Math.round(P * M));
     loanInterest.textContent = yen(Math.round(P * M - A));
 
-    loanResult.style.display = loanChartCard.style.display = "block";
+    loanResult.style.display = "block";
+    loanChartCard.style.display = "block";
 
-    if (loanChart) loanChart.destroy();
-    loanChart = new Chart(loanChart, {
+    const ctx = document.getElementById("loanChart").getContext("2d");
+    if (loanChartInstance) loanChartInstance.destroy();
+
+    loanChartInstance = new Chart(ctx, {
       type: "line",
-      data: { labels, datasets: [{ data, fill:true, tension:0.3 }] },
-      options: { plugins:{legend:{display:false}} }
+      data: {
+        labels,
+        datasets: [{
+          label: "残債",
+          data,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            ticks: { callback: v => v.toLocaleString() }
+          }
+        }
+      }
     });
   }
 
@@ -193,28 +217,49 @@
     const months = Y * 12;
 
     let total = 0;
-    const data = [], labels = [];
+    const data = [];
+    const labels = [];
 
     for (let i = 1; i <= months; i++) {
       total = total * (1 + R) + M;
+
       if (i % 12 === 0 || i === months) {
-        labels.push(`${Math.ceil(i/12)}年`);
+        labels.push(`${Math.ceil(i / 12)}年`);
         data.push(Math.round(total));
       }
     }
 
     const principal = M * months;
+
     saveTotal.textContent = yen(Math.round(total));
     savePrincipal.textContent = yen(principal);
     saveInterest.textContent = yen(Math.round(total - principal));
 
-    saveResult.style.display = saveChartCard.style.display = "block";
+    saveResult.style.display = "block";
+    saveChartCard.style.display = "block";
 
-    if (saveChart) saveChart.destroy();
-    saveChart = new Chart(saveChart, {
+    const ctx = document.getElementById("saveChart").getContext("2d");
+    if (saveChartInstance) saveChartInstance.destroy();
+
+    saveChartInstance = new Chart(ctx, {
       type: "line",
-      data: { labels, datasets: [{ data, fill:true, tension:0.3 }] },
-      options: { plugins:{legend:{display:false}} }
+      data: {
+        labels,
+        datasets: [{
+          label: "積立金額",
+          data,
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            ticks: { callback: v => v.toLocaleString() }
+          }
+        }
+      }
     });
   }
 </script>
